@@ -1,56 +1,55 @@
-import { useEffect, useState } from 'react';
+// pages/admin.js
+import React from 'react';
 import { supabaseServer } from '../utils/supabaseServerClient';
 
-export default function AdminPage() {
-  const [guests, setGuests] = useState([]);
-  const [loading, setLoading] = useState(true);
+export async function getServerSideProps() {
+  // Fetch all guests server-side using Service Role Key
+  const { data: guests, error } = await supabaseServer
+    .from('guests')
+    .select('*');
 
-  useEffect(() => {
-    async function fetchGuests() {
-      try {
-        const { data, error } = await supabaseServer
-          .from('guests')
-          .select('*')
-          .order('name', { ascending: true });
+  return {
+    props: {
+      guests: guests || [],
+      fetchError: error?.message || null,
+    },
+  };
+}
 
-        if (error) {
-          console.error('Error fetching guests:', error);
-        } else {
-          setGuests(data);
-        }
-      } catch (err) {
-        console.error('Unexpected error:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchGuests();
-  }, []);
-
-  if (loading) return <p>Loading RSVPs...</p>;
+export default function AdminPage({ guests, fetchError }) {
+  if (fetchError) {
+    return <p>Error fetching guest data: {fetchError}</p>;
+  }
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>RSVP Admin Dashboard</h1>
-      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%' }}>
+    <main style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
+      <h1>Wedding Admin Dashboard</h1>
+      <p>Total guests: {guests.length}</p>
+
+      <table
+        style={{
+          width: '100%',
+          borderCollapse: 'collapse',
+          marginTop: '1rem',
+        }}
+      >
         <thead>
           <tr>
-            <th>Name</th>
-            <th>RSVP Status</th>
-            <th>Dietary Requirements</th>
+            <th style={{ border: '1px solid #ccc', padding: '0.5rem' }}>Name</th>
+            <th style={{ border: '1px solid #ccc', padding: '0.5rem' }}>RSVP</th>
+            <th style={{ border: '1px solid #ccc', padding: '0.5rem' }}>Dietary Requirements</th>
           </tr>
         </thead>
         <tbody>
           {guests.map((guest) => (
             <tr key={guest.id}>
-              <td>{guest.name}</td>
-              <td>{guest.rsvp_status || 'Not Responded'}</td>
-              <td>{guest.dietary_requirements || '-'}</td>
+              <td style={{ border: '1px solid #ccc', padding: '0.5rem' }}>{guest.name}</td>
+              <td style={{ border: '1px solid #ccc', padding: '0.5rem' }}>{guest.rsvp_status || '-'}</td>
+              <td style={{ border: '1px solid #ccc', padding: '0.5rem' }}>{guest.dietary_requirements || '-'}</td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
+    </main>
   );
 }
