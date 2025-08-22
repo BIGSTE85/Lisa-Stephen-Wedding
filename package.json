@@ -9,9 +9,11 @@
     "qr": "node utils/generateQRCodes.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
+    "dotenv": "^17.2.1",
     "next": "^14.0.0",
+    "qrcode": "^1.5.3",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "qrcode": "^1.5.3"
+    "react-dom": "^18.2.0"
   }
 }

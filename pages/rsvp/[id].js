@@ -1,49 +1,119 @@
-import { useRouter } from 'next/router'
-import { useState, useEffect } from 'react'
-import guests from '../../data/guests.json'
+// pages/rsvp/[id].js
+import { useState } from 'react';
 
-export default function RSVPPage() {
-  const router = useRouter()
-  const { id } = router.query
-  const [guest, setGuest] = useState(null)
-  const [status, setStatus] = useState(null)
-  const [submitted, setSubmitted] = useState(false)
+export default function RSVPPage({ guestData, fetchError }) {
+  const [guest, setGuest] = useState(guestData || null);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      const found = guests.find(g => g.id === id)
-      setGuest(found || null)
-    }
-  }, [id])
+  if (fetchError) return <p>Error fetching guest data: {fetchError}</p>;
+  if (!guest) return <p>Guest not found.</p>;
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    await fetch('/api/rsvp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guestId: id, status })
-    })
-    setSubmitted(true)
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/rsvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: guest.id,
+          rsvp_status: guest.rsvp_status,
+          dietary_requirements: guest.dietary_requirements,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setGuest(data.data);
+        setSubmitted(true);
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Unexpected error updating RSVP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div>
+        <h1>Thank you, {guest.name}!</h1>
+        <p>Your RSVP has been successfully submitted.</p>
+      </div>
+    );
   }
 
-  if (!guest) return <h2>Loading guest details...</h2>
-  if (submitted) return <h2>Thanks {guest.name}! Your RSVP has been recorded ✅</h2>
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Hi {guest.name}!</h1>
-      <p style={{ marginBottom: "1rem" }}>Will you be joining us?</p>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        <button type="button" onClick={() => setStatus("Yes")}
-          style={{ padding: "0.5rem", backgroundColor: status==="Yes" ? "green" : "#ccc", color: "white", borderRadius: "5px" }}>
-          Accept
+    <div>
+      <h1>Hello, {guest.name}!</h1>
+      <p>Please submit your RSVP below:</p>
+
+      <form onSubmit={handleSubmit}>
+        <label>
+          Will you attend?
+          <select
+            name="rsvp_status"
+            value={guest.rsvp_status || ''}
+            onChange={(e) => setGuest({ ...guest, rsvp_status: e.target.value })}
+            required
+          >
+            <option value="">Select...</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </label>
+
+        <label>
+          Dietary Requirements:
+          <input
+            type="text"
+            name="dietary_requirements"
+            placeholder="e.g., Vegetarian"
+            value={guest.dietary_requirements || ''}
+            onChange={(e) =>
+              setGuest({ ...guest, dietary_requirements: e.target.value })
+            }
+          />
+        </label>
+
+        <button type="submit" disabled={loading}>
+          {loading ? 'Submitting...' : 'Submit RSVP'}
         </button>
-        <button type="button" onClick={() => setStatus("No")}
-          style={{ padding: "0.5rem", backgroundColor: status==="No" ? "red" : "#ccc", color: "white", borderRadius: "5px" }}>
-          Decline
-        </button>
-        <button type="submit" style={{ padding: "0.5rem", backgroundColor: "blue", color: "white", borderRadius: "5px" }}>Submit</button>
       </form>
     </div>
-  )
+  );
+}
+
+// Server-side fetch
+import { supabaseServer } from '../../utils/supabaseServerClient';
+
+export async function getServerSideProps({ params }) {
+  const { id } = params;
+
+  try {
+    const { data: guest, error } = await supabaseServer
+      .from('guests')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return { props: { guestData: null, fetchError: error.message } };
+    }
+
+    if (!guest) {
+      return { props: { guestData: null, fetchError: 'Guest not found' } };
+    }
+
+    return { props: { guestData: guest, fetchError: null } };
+  } catch (err) {
+    console.error(err);
+    return { props: { guestData: null, fetchError: 'Unexpected server error' } };
+  }
 }

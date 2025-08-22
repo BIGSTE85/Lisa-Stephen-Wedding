@@ -1,34 +1,24 @@
-import fs from 'fs'
-import path from 'path'
+// pages/api/rsvp.js
+import { supabaseServer } from '../../utils/supabaseServerClient';
 
-export default function handler(req, res) {
-  if (req.method === 'POST') {
-    const { guestId, status } = req.body
+export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
 
-    // Path to a file where we’ll save responses
-    const filePath = path.join(process.cwd(), 'data', 'responses.json')
+  const { id, rsvp_status, dietary_requirements } = req.body;
 
-    // Read existing responses
-    let responses = []
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath)
-      responses = JSON.parse(data)
-    }
+  try {
+    const { data, error } = await supabaseServer
+      .from('guests')
+      .update({ rsvp_status, dietary_requirements })
+      .eq('id', id)
+      .select()
+      .single();
 
-    // Add/update response
-    const existingIndex = responses.findIndex(r => r.guestId === guestId)
-    if (existingIndex >= 0) {
-      responses[existingIndex].status = status
-    } else {
-      responses.push({ guestId, status })
-    }
+    if (error) return res.status(400).json({ error: error.message });
 
-    // Save back to file
-    fs.writeFileSync(filePath, JSON.stringify(responses, null, 2))
-
-    console.log(`Guest ${guestId} responded: ${status}`)
-    return res.status(200).json({ success: true })
+    return res.status(200).json({ data });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Unexpected server error' });
   }
-
-  res.status(405).json({ error: "Method not allowed" })
 }

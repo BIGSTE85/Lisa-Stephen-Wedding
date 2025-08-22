@@ -1,4 +1,7 @@
 export default function Home() {
+  console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log("SUPABASE ANON KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
   return (
     <main style={{
       display: "flex",
